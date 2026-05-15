@@ -3,335 +3,418 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAGUJJE Trading Platform</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>KAI Trading Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --bg-dark: #0f172a;
-            --card-dark: #1e293b;
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --muted: #8b949e;
+            --green: #3fb950;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --purple: #a371f7;
         }
-        body { background: var(--bg-dark); }
-        .card { background: var(--card-dark); border: 1px solid #334155; }
-        .pulse { animation: pulse 2s infinite; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
         }
-        .status-live { color: #10b981; }
-        .status-offline { color: #ef4444; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { margin-bottom: 20px; font-size: 24px; }
+        h2 { font-size: 18px; margin-bottom: 15px; color: var(--muted); }
+        .grid { display: grid; gap: 20px; }
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
+        .grid-3 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-running { background: rgba(63, 185, 80, 0.2); color: var(--green); }
+        .status-stopped { background: rgba(248, 81, 73, 0.2); color: var(--red); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot-green { background: var(--green); animation: pulse 2s infinite; }
+        .dot-red { background: var(--red); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        /* Bot Cards */
+        .bot-card { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 10px; }
+        .bot-info h3 { font-size: 16px; margin-bottom: 4px; }
+        .bot-info p { font-size: 12px; color: var(--muted); }
+        .bot-stats { text-align: right; }
+        .bot-stats .stat { font-size: 20px; font-weight: bold; }
+        .bot-stats .label { font-size: 11px; color: var(--muted); }
+        
+        /* Signal Cards */
+        .signal-card { display: flex; align-items: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 8px; }
+        .signal-direction { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 12px; }
+        .signal-up { background: rgba(63, 185, 80, 0.2); color: var(--green); }
+        .signal-down { background: rgba(248, 81, 73, 0.2); color: var(--red); }
+        .signal-info { flex: 1; }
+        .signal-info h4 { font-size: 14px; }
+        .signal-info p { font-size: 12px; color: var(--muted); }
+        .signal-confidence { text-align: right; }
+        .signal-confidence .value { font-size: 24px; font-weight: bold; }
+        .signal-confidence .label { font-size: 11px; color: var(--muted); }
+        
+        /* Trade History */
+        .trade-row { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid var(--border); }
+        .trade-row:last-child { border-bottom: none; }
+        .trade-profit { margin-left: auto; font-weight: bold; }
+        .profit-positive { color: var(--green); }
+        .profit-negative { color: var(--red); }
+        
+        /* Account Form */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+        }
+        .form-group input:focus { outline: none; border-color: var(--blue); }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-success { background: var(--green); color: white; }
+        
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .header-right { display: flex; gap: 10px; }
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .refresh-btn:hover { background: var(--card); }
+        
+        /* Empty State */
+        .empty { text-align: center; padding: 40px; color: var(--muted); }
+        
+        /* Last Updated */
+        .last-updated { font-size: 11px; color: var(--muted); margin-top: 10px; }
     </style>
 </head>
-<body class="min-h-screen text-white p-4">
-    <!-- Header -->
-    <header class="flex justify-between items-center mb-6">
-        <div>
-            <h1 class="text-2xl font-bold">📈 KAGUJJE Trading Platform</h1>
-            <p class="text-gray-400 text-sm">Powered by Online PC Engine</p>
-        </div>
-        <div class="flex gap-4 items-center">
-            <div id="status-indicator" class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-gray-500"></span>
-                <span class="text-gray-400">Checking...</span>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🧠 KAI Trading Dashboard</h1>
+                <p style="color: var(--muted); font-size: 12px;">Powered by Online PC Engine • Survives Zo shutdowns</p>
             </div>
-            <button onclick="refreshAll()" class="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-lg text-sm">
-                🔄 Refresh
-            </button>
-        </div>
-    </header>
-
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div class="card p-4 rounded-xl">
-            <p class="text-gray-400 text-sm">Total Trades</p>
-            <p id="stat-trades" class="text-2xl font-bold">-</p>
-        </div>
-        <div class="card p-4 rounded-xl">
-            <p class="text-gray-400 text-sm">Win Rate</p>
-            <p id="stat-winrate" class="text-2xl font-bold text-emerald-400">-</p>
-        </div>
-        <div class="card p-4 rounded-xl">
-            <p class="text-gray-400 text-sm">Today's P/L</p>
-            <p id="stat-pnl" class="text-2xl font-bold">-</p>
-        </div>
-        <div class="card p-4 rounded-xl">
-            <p class="text-gray-400 text-sm">Active Bots</p>
-            <p id="stat-bots" class="text-2xl font-bold">-</p>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Accounts Panel -->
-        <div class="card p-4 rounded-xl">
-            <h2 class="text-lg font-semibold mb-4">🏦 Broker Accounts</h2>
-            <div id="accounts-list" class="space-y-3">
-                <p class="text-gray-400 text-sm">Loading accounts...</p>
-            </div>
-            <button onclick="showAddAccount()" class="mt-4 w-full bg-slate-700 hover:bg-slate-600 py-2 rounded-lg text-sm">
-                + Add Account
-            </button>
-        </div>
-
-        <!-- Signals Panel -->
-        <div class="card p-4 rounded-xl">
-            <h2 class="text-lg font-semibold mb-4">📊 Deriv Signals</h2>
-            <div id="signals-list" class="space-y-2 max-h-96 overflow-y-auto">
-                <p class="text-gray-400 text-sm">Loading signals...</p>
+            <div class="header-right">
+                <button class="refresh-btn" onclick="refreshAll()">🔄 Refresh</button>
+                <span class="status-badge status-running"><span class="dot dot-green"></span> Live</span>
             </div>
         </div>
 
-        <!-- Trades Panel -->
-        <div class="card p-4 rounded-xl">
-            <h2 class="text-lg font-semibold mb-4">📋 Recent Trades</h2>
-            <div id="trades-list" class="space-y-2 max-h-96 overflow-y-auto">
-                <p class="text-gray-400 text-sm">Loading trades...</p>
+        <!-- Bot Status -->
+        <div class="grid grid-3" style="margin-bottom: 20px;">
+            <div class="card">
+                <h2>🤖 MT5 Trader</h2>
+                <div id="mt5-status" class="empty">Loading...</div>
+            </div>
+            <div class="card">
+                <h2>📊 Deriv Signals</h2>
+                <div id="deriv-status" class="empty">Loading...</div>
+            </div>
+            <div class="card">
+                <h2>🧠 KAI Learner</h2>
+                <div id="kai-status" class="empty">Loading...</div>
             </div>
         </div>
-    </div>
 
-    <!-- Bot Controls -->
-    <div class="card p-4 rounded-xl mt-6">
-        <h2 class="text-lg font-semibold mb-4">🤖 Bot Controls</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-slate-800 p-4 rounded-lg">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-medium">MT5 Trader</span>
-                    <span id="mt5-status" class="text-xs px-2 py-1 bg-gray-700 rounded">Unknown</span>
-                </div>
-                <p class="text-gray-400 text-xs mb-3">Forex/CFD automated trading</p>
-                <div class="flex gap-2">
-                    <button onclick="toggleBot('mt5-trader', 'start')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 py-1 rounded text-sm">Start</button>
-                    <button onclick="toggleBot('mt5-trader', 'stop')" class="flex-1 bg-red-600 hover:bg-red-700 py-1 rounded text-sm">Stop</button>
-                </div>
+        <div class="grid grid-2">
+            <!-- Recent Signals -->
+            <div class="card">
+                <h2>📈 Recent Signals</h2>
+                <div id="signals-list">Loading...</div>
+                <p class="last-updated" id="signals-updated"></p>
             </div>
-            <div class="bg-slate-800 p-4 rounded-lg">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-medium">Deriv Signals</span>
-                    <span id="deriv-status" class="text-xs px-2 py-1 bg-gray-700 rounded">Unknown</span>
-                </div>
-                <p class="text-gray-400 text-xs mb-3">Volatility index signals</p>
-                <div class="flex gap-2">
-                    <button onclick="toggleBot('deriv-signals', 'start')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 py-1 rounded text-sm">Start</button>
-                    <button onclick="toggleBot('deriv-signals', 'stop')" class="flex-1 bg-red-600 hover:bg-red-700 py-1 rounded text-sm">Stop</button>
-                </div>
-            </div>
-            <div class="bg-slate-800 p-4 rounded-lg">
-                <div class="flex justify-between items-center mb-2">
-                    <span class="font-medium">KAI Learner</span>
-                    <span id="kai-status" class="text-xs px-2 py-1 bg-gray-700 rounded">Unknown</span>
-                </div>
-                <p class="text-gray-400 text-xs mb-3">AI learning & optimization</p>
-                <div class="flex gap-2">
-                    <button onclick="toggleBot('kai-learner', 'start')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 py-1 rounded text-sm">Start</button>
-                    <button onclick="toggleBot('kai-learner', 'stop')" class="flex-1 bg-red-600 hover:bg-red-700 py-1 rounded text-sm">Stop</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Add Account Modal -->
-    <div id="add-account-modal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="card p-6 rounded-xl w-full max-w-md">
-            <h3 class="text-lg font-semibold mb-4">Add Broker Account</h3>
-            <form id="account-form" class="space-y-4">
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Broker</label>
-                    <select id="account-broker" class="w-full bg-slate-700 rounded-lg px-3 py-2">
-                        <option value="mt5-forex">MT5 Forex</option>
-                        <option value="deriv">Deriv</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Account Name</label>
-                    <input type="text" id="account-name" class="w-full bg-slate-700 rounded-lg px-3 py-2" placeholder="My Trading Account">
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Login</label>
-                    <input type="text" id="account-login" class="w-full bg-slate-700 rounded-lg px-3 py-2" placeholder="Account login">
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Password</label>
-                    <input type="password" id="account-password" class="w-full bg-slate-700 rounded-lg px-3 py-2" placeholder="Account password">
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Server (for MT5)</label>
-                    <input type="text" id="account-server" class="w-full bg-slate-700 rounded-lg px-3 py-2" placeholder="e.g., Exness-Real">
-                </div>
-                <div class="flex gap-3 mt-6">
-                    <button type="button" onclick="hideAddAccount()" class="flex-1 bg-slate-700 hover:bg-slate-600 py-2 rounded-lg">Cancel</button>
-                    <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 py-2 rounded-lg">Add Account</button>
-                </div>
-            </form>
+            <!-- Trade History -->
+            <div class="card">
+                <h2>📜 Trade History</h2>
+                <div id="trades-list">Loading...</div>
+                <p class="last-updated" id="trades-updated"></p>
+            </div>
         </div>
+
+        <!-- Broker Accounts -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>🔐 Broker Accounts</h2>
+            <div id="accounts-list" style="margin-bottom: 20px;">Loading...</div>
+            
+            <details style="margin-top: 20px;">
+                <summary style="cursor: pointer; color: var(--blue); font-size: 14px;">+ Add New Account</summary>
+                <form id="account-form" style="margin-top: 15px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                    <div class="grid grid-3" style="gap: 15px;">
+                        <div class="form-group">
+                            <label>Broker</label>
+                            <select id="broker-select">
+                                <option value="MT5">MetaTrader 5</option>
+                                <option value="DERIV">Deriv</option>
+                                <option value="XM">XM</option>
+                                <option value="EXNESS">Exness</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Account Name</label>
+                            <input type="text" id="account-name" placeholder="My Trading Account">
+                        </div>
+                        <div class="form-group">
+                            <label>Login ID</label>
+                            <input type="text" id="account-login" placeholder="12345678">
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="account-password" placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label>Server</label>
+                            <input type="text" id="account-server" placeholder="Broker-Demo">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end;">
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Add Account</button>
+                        </div>
+                    </div>
+                </form>
+            </details>
+        </div>
+
+        <!-- Bot Control -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>🎮 Bot Control</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="startBot('mt5-trader')">▶️ Start MT5 Trader</button>
+                <button class="btn btn-danger" onclick="stopBot('mt5-trader')">⏹️ Stop MT5 Trader</button>
+                <button class="btn btn-success" onclick="startBot('deriv-signals')">▶️ Start Deriv Signals</button>
+                <button class="btn btn-danger" onclick="stopBot('deriv-signals')">⏹️ Stop Deriv Signals</button>
+            </div>
+        </div>
+
+        <p class="last-updated" style="text-align: center; margin-top: 20px;">
+            Data stored on Supabase • Runs on GitHub Actions • Works even when Zo is down
+        </p>
     </div>
 
     <script>
-        // Supabase config - survives Zo shutdown
+        // Supabase config
         const SUPABASE_URL = 'https://dtejfdquiqogwapjtfar.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0ZWpmZHF1aXFvZ3dhcGp0ZmFyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU5NzQ1ODQsImV4cCI6MjA2MTU1MDU4NH0.UFQYgR0N_xhFYNDJQemzSGxLBFaLgb9s_L5XqKJWBxE';
-        
+        const SUPABASE_KEY = 'sb_publishable_3JPpK4gqHa3hIfNToREj3A_U75caIu8';
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Initialize tables if needed
-        async function initDatabase() {
-            // Tables are created via Supabase dashboard or SQL
-            console.log('Database initialized');
-        }
-
-        // Check Online PC Engine status
-        async function checkOnlinePCStatus() {
-            try {
-                const response = await fetch('https://api.github.com/repos/kagujje256/online-pc/actions/runs?per_page=1');
-                const data = await response.json();
-                const latestRun = data.workflow_runs?.[0];
-                
-                const indicator = document.getElementById('status-indicator');
-                if (latestRun?.status === 'in_progress') {
-                    indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 pulse"></span><span class="text-emerald-400">Online PC: Running</span>';
-                } else if (latestRun?.conclusion === 'success') {
-                    indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-emerald-400">Online PC: Idle</span>';
-                } else {
-                    indicator.innerHTML = '<span class="w-2 h-2 rounded-full bg-yellow-500"></span><span class="text-yellow-400">Online PC: ' + (latestRun?.conclusion || 'Unknown') + '</span>';
-                }
-            } catch (e) {
-                document.getElementById('status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-red-400">Offline</span>';
-            }
-        }
-
-        // Load accounts from Supabase
-        async function loadAccounts() {
+        // Fetch and display bot status
+        async function fetchBotStatus() {
             const { data, error } = await supabase
-                .from('broker_accounts')
-                .select('*')
-                .order('created_at', { ascending: false });
+                .from('bot_status')
+                .select('*');
             
-            const list = document.getElementById('accounts-list');
-            
-            if (error || !data?.length) {
-                list.innerHTML = '<p class="text-gray-400 text-sm">No accounts configured</p>';
+            if (error) {
+                console.error('Error fetching bot status:', error);
                 return;
             }
-            
-            list.innerHTML = data.map(acc => `
-                <div class="bg-slate-800 p-3 rounded-lg">
-                    <div class="flex justify-between items-center">
-                        <span class="font-medium">${acc.name}</span>
-                        <span class="text-xs px-2 py-1 ${acc.is_active ? 'bg-emerald-600' : 'bg-gray-600'} rounded">${acc.broker}</span>
-                    </div>
-                    <p class="text-gray-400 text-xs mt-1">Login: ${acc.login}</p>
-                    <div class="flex gap-2 mt-2">
-                        <button onclick="toggleAccount('${acc.id}', ${!acc.is_active})" class="text-xs px-2 py-1 bg-slate-700 rounded">
-                            ${acc.is_active ? 'Disable' : 'Enable'}
-                        </button>
-                        <button onclick="deleteAccount('${acc.id}')" class="text-xs px-2 py-1 bg-red-900/50 rounded">Delete</button>
-                    </div>
-                </div>
-            `).join('');
+
+            data.forEach(bot => {
+                const container = document.getElementById(`${bot.bot_name.split('-')[0]}-status`) ||
+                                  document.getElementById(`${bot.bot_name.replace('-', '-')}-status`);
+                
+                if (bot.bot_name === 'mt5-trader') {
+                    document.getElementById('mt5-status').innerHTML = `
+                        <div class="bot-card">
+                            <div class="bot-info">
+                                <h3>MT5 Trading Bot</h3>
+                                <p>Last: ${bot.last_heartbeat ? new Date(bot.last_heartbeat).toLocaleString() : 'Never'}</p>
+                            </div>
+                            <div class="bot-stats">
+                                <div class="stat">${bot.stats?.trades || 0}</div>
+                                <div class="label">Trades</div>
+                            </div>
+                        </div>
+                        <span class="status-badge ${bot.is_running ? 'status-running' : 'status-stopped'}">
+                            <span class="dot ${bot.is_running ? 'dot-green' : 'dot-red'}"></span>
+                            ${bot.is_running ? 'Running' : 'Stopped'}
+                        </span>
+                        ${bot.last_error ? `<p style="color: var(--red); font-size: 12px; margin-top: 10px;">⚠️ ${bot.last_error}</p>` : ''}
+                    `;
+                } else if (bot.bot_name === 'deriv-signals') {
+                    document.getElementById('deriv-status').innerHTML = `
+                        <div class="bot-card">
+                            <div class="bot-info">
+                                <h3>Deriv Signal Generator</h3>
+                                <p>Last: ${bot.last_heartbeat ? new Date(bot.last_heartbeat).toLocaleString() : 'Never'}</p>
+                            </div>
+                            <div class="bot-stats">
+                                <div class="stat">${bot.stats?.signals || '?'}</div>
+                                <div class="label">Signals</div>
+                            </div>
+                        </div>
+                        <span class="status-badge ${bot.is_running ? 'status-running' : 'status-stopped'}">
+                            <span class="dot ${bot.is_running ? 'dot-green' : 'dot-red'}"></span>
+                            ${bot.is_running ? 'Running' : 'Stopped'}
+                        </span>
+                    `;
+                } else if (bot.bot_name === 'kai-learner') {
+                    document.getElementById('kai-status').innerHTML = `
+                        <div class="bot-card">
+                            <div class="bot-info">
+                                <h3>KAI Learning Agent</h3>
+                                <p>Last: ${bot.last_heartbeat ? new Date(bot.last_heartbeat).toLocaleString() : 'Never'}</p>
+                            </div>
+                            <div class="bot-stats">
+                                <div class="stat">${bot.stats?.sessions || '?'}</div>
+                                <div class="label">Sessions</div>
+                            </div>
+                        </div>
+                        <span class="status-badge ${bot.is_running ? 'status-running' : 'status-stopped'}">
+                            <span class="dot ${bot.is_running ? 'dot-green' : 'dot-red'}"></span>
+                            ${bot.is_running ? 'Running' : 'Stopped'}
+                        </span>
+                    `;
+                }
+            });
         }
 
-        // Load signals
-        async function loadSignals() {
+        // Fetch signals
+        async function fetchSignals() {
             const { data, error } = await supabase
                 .from('trading_signals')
                 .select('*')
                 .order('created_at', { ascending: false })
-                .limit(20);
+                .limit(10);
             
-            const list = document.getElementById('signals-list');
-            
-            if (error || !data?.length) {
-                list.innerHTML = '<p class="text-gray-400 text-sm">No signals yet</p>';
+            if (error) {
+                console.error('Error fetching signals:', error);
                 return;
             }
-            
-            list.innerHTML = data.map(s => `
-                <div class="bg-slate-800 p-2 rounded text-sm">
-                    <div class="flex justify-between">
-                        <span class="${s.direction === 'UP' ? 'text-emerald-400' : 'text-red-400'}">${s.direction === 'UP' ? '📈' : '📉'} ${s.symbol}</span>
-                        <span class="text-gray-400 text-xs">${new Date(s.created_at).toLocaleTimeString()}</span>
+
+            if (!data || data.length === 0) {
+                document.getElementById('signals-list').innerHTML = '<div class="empty">No signals yet</div>';
+                return;
+            }
+
+            document.getElementById('signals-list').innerHTML = data.map(signal => `
+                <div class="signal-card">
+                    <div class="signal-direction ${signal.direction === 'UP' || signal.direction === 'CALL' ? 'signal-up' : 'signal-down'}">
+                        ${signal.direction === 'UP' || signal.direction === 'CALL' ? '↑' : '↓'}
                     </div>
-                    <p class="text-gray-400 text-xs mt-1">${s.signal_type} • Confidence: ${s.confidence}%</p>
+                    <div class="signal-info">
+                        <h4>${signal.symbol}</h4>
+                        <p>${signal.signal_type} • ${signal.timeframe || 'N/A'}</p>
+                    </div>
+                    <div class="signal-confidence">
+                        <div class="value">${signal.confidence}%</div>
+                        <div class="label">${new Date(signal.created_at).toLocaleTimeString()}</div>
+                    </div>
                 </div>
             `).join('');
+
+            document.getElementById('signals-updated').textContent = `Last updated: ${new Date().toLocaleString()}`;
         }
 
-        // Load trades
-        async function loadTrades() {
+        // Fetch trades
+        async function fetchTrades() {
             const { data, error } = await supabase
                 .from('trade_history')
                 .select('*')
                 .order('opened_at', { ascending: false })
-                .limit(20);
+                .limit(10);
             
-            const list = document.getElementById('trades-list');
-            
-            if (error || !data?.length) {
-                list.innerHTML = '<p class="text-gray-400 text-sm">No trades yet</p>';
+            if (error) {
+                console.error('Error fetching trades:', error);
                 return;
             }
-            
-            list.innerHTML = data.map(t => `
-                <div class="bg-slate-800 p-2 rounded text-sm">
-                    <div class="flex justify-between">
-                        <span>${t.symbol}</span>
-                        <span class="${t.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}">${t.profit >= 0 ? '+' : ''}$${t.profit?.toFixed(2) || '0.00'}</span>
+
+            if (!data || data.length === 0) {
+                document.getElementById('trades-list').innerHTML = '<div class="empty">No trades yet</div>';
+                return;
+            }
+
+            document.getElementById('trades-list').innerHTML = data.map(trade => `
+                <div class="trade-row">
+                    <div>
+                        <strong>${trade.symbol}</strong>
+                        <span style="color: ${trade.direction === 'BUY' ? 'var(--green)' : 'var(--red)'}; margin-left: 8px;">
+                            ${trade.direction}
+                        </span>
                     </div>
-                    <p class="text-gray-400 text-xs mt-1">${t.direction} @ ${t.entry_price} → ${t.exit_price || 'Open'}</p>
+                    <div style="flex: 1; text-align: center; color: var(--muted);">
+                        ${trade.lot_size || 0.01} lots
+                    </div>
+                    <div class="trade-profit ${trade.profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                        ${trade.profit !== null ? (trade.profit >= 0 ? '+' : '') + trade.profit.toFixed(2) : 'Open'}
+                    </div>
                 </div>
             `).join('');
+
+            document.getElementById('trades-updated').textContent = `Last updated: ${new Date().toLocaleString()}`;
         }
 
-        // Load stats
-        async function loadStats() {
-            // Get total trades
-            const { count: tradeCount } = await supabase
-                .from('trade_history')
-                .select('*', { count: 'exact', head: true });
+        // Fetch accounts
+        async function fetchAccounts() {
+            const { data, error } = await supabase
+                .from('broker_accounts')
+                .select('*')
+                .eq('is_active', true);
             
-            // Get win rate
-            const { data: wins } = await supabase
-                .from('trade_history')
-                .select('profit')
-                .not('profit', 'is', null);
-            
-            const totalTrades = wins?.length || 0;
-            const winningTrades = wins?.filter(t => t.profit > 0).length || 0;
-            const winRate = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(1) : 0;
-            
-            // Get today's P/L
-            const today = new Date().toISOString().split('T')[0];
-            const { data: todayTrades } = await supabase
-                .from('trade_history')
-                .select('profit')
-                .gte('opened_at', today)
-                .not('profit', 'is', null);
-            
-            const todayPnL = todayTrades?.reduce((sum, t) => sum + (t.profit || 0), 0) || 0;
-            
-            // Get active bots
-            const { count: activeBots } = await supabase
-                .from('bot_status')
-                .select('*', { count: 'exact', head: true })
-                .eq('is_running', true);
-            
-            document.getElementById('stat-trades').textContent = tradeCount || 0;
-            document.getElementById('stat-winrate').textContent = winRate + '%';
-            document.getElementById('stat-pnl').textContent = (todayPnL >= 0 ? '+' : '') + '$' + todayPnL.toFixed(2);
-            document.getElementById('stat-pnl').className = 'text-2xl font-bold ' + (todayPnL >= 0 ? 'text-emerald-400' : 'text-red-400');
-            document.getElementById('stat-bots').textContent = activeBots || 0;
-        }
+            if (error) {
+                console.error('Error fetching accounts:', error);
+                return;
+            }
 
-        // Modal functions
-        function showAddAccount() {
-            document.getElementById('add-account-modal').classList.remove('hidden');
-        }
-        
-        function hideAddAccount() {
-            document.getElementById('add-account-modal').classList.add('hidden');
+            if (!data || data.length === 0) {
+                document.getElementById('accounts-list').innerHTML = '<div class="empty">No broker accounts configured. Add one below.</div>';
+                return;
+            }
+
+            document.getElementById('accounts-list').innerHTML = `
+                <div class="grid grid-3" style="gap: 15px;">
+                    ${data.map(account => `
+                        <div class="bot-card">
+                            <div class="bot-info">
+                                <h3>${account.name}</h3>
+                                <p>${account.broker} • ${account.login}</p>
+                            </div>
+                            <div class="bot-stats">
+                                <div class="stat">$${(account.balance || 0).toFixed(2)}</div>
+                                <div class="label">Balance</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
         }
 
         // Add account
@@ -339,77 +422,71 @@
             e.preventDefault();
             
             const account = {
-                broker: document.getElementById('account-broker').value,
+                broker: document.getElementById('broker-select').value,
                 name: document.getElementById('account-name').value,
                 login: document.getElementById('account-login').value,
                 password: document.getElementById('account-password').value,
-                server: document.getElementById('account-server').value || null,
+                server: document.getElementById('account-server').value,
                 is_active: true
             };
-            
+
             const { error } = await supabase
                 .from('broker_accounts')
                 .insert([account]);
             
             if (error) {
-                alert('Error: ' + error.message);
-                return;
+                alert('Error adding account: ' + error.message);
+            } else {
+                alert('Account added successfully!');
+                fetchAccounts();
+                e.target.reset();
             }
-            
-            hideAddAccount();
-            loadAccounts();
-            document.getElementById('account-form').reset();
         });
 
-        // Toggle account
-        async function toggleAccount(id, isActive) {
-            await supabase
-                .from('broker_accounts')
-                .update({ is_active: isActive })
-                .eq('id', id);
-            loadAccounts();
-        }
-
-        // Delete account
-        async function deleteAccount(id) {
-            if (confirm('Delete this account?')) {
-                await supabase
-                    .from('broker_accounts')
-                    .delete()
-                    .eq('id', id);
-                loadAccounts();
-            }
-        }
-
-        // Toggle bot
-        async function toggleBot(botName, action) {
-            // Store bot command in Supabase for Online PC to pick up
-            await supabase
+        // Bot control
+        async function startBot(botName) {
+            const { error } = await supabase
                 .from('bot_commands')
                 .insert([{
                     bot_name: botName,
-                    action: action,
+                    action: 'start',
                     status: 'pending'
                 }]);
             
-            alert(`${botName}: ${action} command sent to Online PC Engine`);
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert(`Start command sent to ${botName}. It will start on next scheduled run.`);
+            }
+        }
+
+        async function stopBot(botName) {
+            const { error } = await supabase
+                .from('bot_commands')
+                .insert([{
+                    bot_name: botName,
+                    action: 'stop',
+                    status: 'pending'
+                }]);
+            
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert(`Stop command sent to ${botName}`);
+            }
         }
 
         // Refresh all
-        async function refreshAll() {
-            await Promise.all([
-                checkOnlinePCStatus(),
-                loadAccounts(),
-                loadSignals(),
-                loadTrades(),
-                loadStats()
-            ]);
+        function refreshAll() {
+            fetchBotStatus();
+            fetchSignals();
+            fetchTrades();
+            fetchAccounts();
         }
 
-        // Initialize
-        initDatabase();
+        // Initial load
         refreshAll();
-        
+
         // Auto-refresh every 30 seconds
         setInterval(refreshAll, 30000);
     </script>
